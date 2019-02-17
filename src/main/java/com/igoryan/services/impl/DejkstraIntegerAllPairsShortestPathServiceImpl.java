@@ -9,10 +9,11 @@ import com.igoryan.services.IntegerAllPairsShortestPathService;
 import com.igoryan.services.IntegerRelaxationService;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import jdk.nashorn.internal.ir.BaseNode;
 import lombok.NonNull;
 
 public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntegerNode>
@@ -29,18 +30,25 @@ public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntege
   }
 
   public void calculate(@NonNull final ValueGraph<N, Integer> graph, @NonNull final N source) {
+    graphToShortestPaths.putIfAbsent(graph, new HashMap<>());
     final Map<EndpointPair<N>, ShortestPathResult<N>> vertexPairToShortestPath =
-        graphToShortestPaths.putIfAbsent(graph, new HashMap<>());
+        graphToShortestPaths.get(graph);
     init(graph, source);
     final Set<N> calculated = new HashSet<>(graph.nodes().size());
     final PriorityQueue<N> queue = new PriorityQueue<>(graph.nodes());
     while (!queue.isEmpty()) {
       N u = queue.poll();
       calculated.add(u);
-      graph.adjacentNodes(u).forEach(node -> relaxationService
+      graph.successors(u).forEach(node -> relaxationService
           .relax(u, node, graph.edgeValueOrDefault(u, node, Integer.MAX_VALUE)));
     }
     calcShortestPath(source, graph, calculated, vertexPairToShortestPath);
+  }
+
+  @Override
+  public Map<EndpointPair<N>, ShortestPathResult<N>> getNodePairToShortestPath(
+      @NonNull final ValueGraph<N, Integer> graph) {
+    return graphToShortestPaths.get(graph);
   }
 
   protected void init(@NonNull ValueGraph<N, Integer> graph, @NonNull N source) {
@@ -54,19 +62,18 @@ public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntege
   protected void calcShortestPath(@NonNull N source, @NonNull ValueGraph<N, Integer> graph,
       Set<N> calculated, Map<EndpointPair<N>, ShortestPathResult<N>> vertexPairToShortestPath) {
     calculated.stream()
-        .filter(node -> node.equals(source))
+        .filter(node -> !node.equals(source))
         .forEach(node -> {
-          final List<N> fromEndToBegin = Lists.newLinkedList();
-          fromEndToBegin.add(node);
-          N temp;
-          do {
-            temp = (N) node.getPredecessor();
-            fromEndToBegin.add(temp);
-          } while (!source.equals(temp));
+          final LinkedList<N> shortestPath = Lists.newLinkedList();
+          shortestPath.addFirst(node);
+          N temp = node;
+          while (temp.getPredecessor() != null) {
+            shortestPath.addFirst((N) temp.getPredecessor());
+            temp = (N) temp.getPredecessor();
+          }
           if (graph.isDirected()) {
             vertexPairToShortestPath.put(EndpointPair.ordered(source, node),
-                new ShortestPathResult<>(Lists.reverse(fromEndToBegin),
-                    node.getShortestPathEstimate()));
+                new ShortestPathResult<>(shortestPath, node.getShortestPathEstimate()));
           }
         });
   }
