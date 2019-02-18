@@ -7,5 +7,5 @@ import lombok.Data;
 public class ShortestPathResult<N> {
 
   private final List<N> shortestPath;
-  private final int weight;
+  private final long weight;
 }

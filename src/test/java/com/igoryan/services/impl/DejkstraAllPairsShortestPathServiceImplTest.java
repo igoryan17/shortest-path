@@ -11,18 +11,18 @@ import com.google.common.graph.MutableValueGraph;
 import com.google.common.graph.ValueGraphBuilder;
 import com.igoryan.model.Node;
 import com.igoryan.model.ShortestPathResult;
-import com.igoryan.services.IntegerAllPairsShortestPathService;
+import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerRelaxationService;
 import java.util.Map;
 import org.junit.Test;
 
-public class DejkstraIntegerAllPairsShortestPathServiceImplTest {
+public class DejkstraAllPairsShortestPathServiceImplTest {
 
   private final IntegerRelaxationService<Node> relaxationService =
       new IntegerRelaxationService<Node>() {
       };
-  private final IntegerAllPairsShortestPathService<Node> allPairsShortestPathService =
-      new DejkstraIntegerAllPairsShortestPathServiceImpl<>(relaxationService);
+  private final IntegerDejkstraAllPairsShortestPathService<Node> allPairsShortestPathService =
+      new DejkstraAllPairsShortestPathServiceImpl<>(relaxationService);
 
   @Test
   public void calculateSimpleCase() {
@@ -48,7 +48,7 @@ public class DejkstraIntegerAllPairsShortestPathServiceImplTest {
     assertThat(endpointPair.target(), is(second));
     assertThat(result.values(), hasSize(1));
     final ShortestPathResult<Node> shortestPathResult = result.get(endpointPair);
-    assertThat(shortestPathResult.getWeight(), is(weight));
+    assertThat(shortestPathResult.getWeight(), is((long) weight));
     assertThat(shortestPathResult.getShortestPath(), contains(first, second));
   }
 
@@ -77,9 +77,9 @@ public class DejkstraIntegerAllPairsShortestPathServiceImplTest {
     final EndpointPair<Node> bc = EndpointPair.ordered(b, c);
     final EndpointPair<Node> ac = EndpointPair.ordered(a, c);
     assertThat(result.keySet(), hasItems(ab, bc, ac));
-    assertThat(result.get(ab).getWeight(), is(1));
-    assertThat(result.get(bc).getWeight(), is(2));
-    assertThat(result.get(ac).getWeight(), is(1));
+    assertThat(result.get(ab).getWeight(), is(1L));
+    assertThat(result.get(bc).getWeight(), is(2L));
+    assertThat(result.get(ac).getWeight(), is(1L));
     assertThat(result.get(ab).getShortestPath(), contains(a, b));
     assertThat(result.get(bc).getShortestPath(), contains(b, c));
     assertThat(result.get(ac).getShortestPath(), contains(a, c));

@@ -5,7 +5,7 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.igoryan.model.BaseIntegerNode;
 import com.igoryan.model.ShortestPathResult;
-import com.igoryan.services.IntegerAllPairsShortestPathService;
+import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerRelaxationService;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,15 +15,15 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import lombok.NonNull;
 
-public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntegerNode>
-    implements IntegerAllPairsShortestPathService<N> {
+public class DejkstraAllPairsShortestPathServiceImpl<N extends BaseIntegerNode>
+    implements IntegerDejkstraAllPairsShortestPathService<N> {
 
   private final Map<ValueGraph<N, Integer>, Map<EndpointPair<N>, ShortestPathResult<N>>>
       graphToShortestPaths =
       new HashMap<>();
   private final IntegerRelaxationService<N> relaxationService;
 
-  public DejkstraIntegerAllPairsShortestPathServiceImpl(
+  public DejkstraAllPairsShortestPathServiceImpl(
       final IntegerRelaxationService<N> relaxationService) {
     this.relaxationService = relaxationService;
   }

@@ -7,7 +7,7 @@ import com.igoryan.model.ShortestPathResult;
 import java.util.Map;
 import lombok.NonNull;
 
-public interface IntegerAllPairsShortestPathService<N extends BaseIntegerNode> {
+public interface IntegerDejkstraAllPairsShortestPathService<N extends BaseIntegerNode> {
 
   void calculate(@NonNull ValueGraph<N, Integer> graph);
 
