@@ -13,7 +13,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
-import jdk.nashorn.internal.ir.BaseNode;
 import lombok.NonNull;
 
 public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntegerNode>
@@ -27,6 +26,13 @@ public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntege
   public DejkstraIntegerAllPairsShortestPathServiceImpl(
       final IntegerRelaxationService<N> relaxationService) {
     this.relaxationService = relaxationService;
+  }
+
+  @Override
+  public void calculate(@NonNull final ValueGraph<N, Integer> graph) {
+    graph.nodes().forEach(node -> calculate(graph, node));
+    final Map<EndpointPair<N>, ShortestPathResult<N>> vertexPairToShortestPath =
+        graphToShortestPaths.get(graph);
   }
 
   public void calculate(@NonNull final ValueGraph<N, Integer> graph, @NonNull final N source) {
@@ -63,6 +69,7 @@ public class DejkstraIntegerAllPairsShortestPathServiceImpl<N extends BaseIntege
       Set<N> calculated, Map<EndpointPair<N>, ShortestPathResult<N>> vertexPairToShortestPath) {
     calculated.stream()
         .filter(node -> !node.equals(source))
+        .filter(node -> node.getShortestPathEstimate() != Integer.MAX_VALUE)
         .forEach(node -> {
           final LinkedList<N> shortestPath = Lists.newLinkedList();
           shortestPath.addFirst(node);

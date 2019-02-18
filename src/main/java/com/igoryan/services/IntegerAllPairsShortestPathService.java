@@ -9,6 +9,8 @@ import lombok.NonNull;
 
 public interface IntegerAllPairsShortestPathService<N extends BaseIntegerNode> {
 
+  void calculate(@NonNull ValueGraph<N, Integer> graph);
+
   void calculate(@NonNull ValueGraph<N, Integer> graph, @NonNull N node);
 
   Map<EndpointPair<N>, ShortestPathResult<N>> getNodePairToShortestPath(
