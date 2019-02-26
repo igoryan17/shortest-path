@@ -3,12 +3,12 @@ package com.igoryan.services.impl;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableValueGraph;
 import com.google.common.graph.ValueGraph;
-import com.igoryan.model.BaseIntegerNode;
+import com.igoryan.model.IntegerBaseNode;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerDynamicGraphService;
 import java.util.List;
 
-public class DejkstraIntegerDynamicGraphServiceImpl<N extends BaseIntegerNode>
+public class DejkstraIntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
     implements IntegerDynamicGraphService<N> {
 
   private final IntegerDejkstraAllPairsShortestPathService<N> dejkstraAllPairsShortestPathService;

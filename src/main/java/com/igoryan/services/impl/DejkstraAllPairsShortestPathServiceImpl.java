@@ -3,10 +3,11 @@ package com.igoryan.services.impl;
 import com.google.common.collect.Lists;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
-import com.igoryan.model.BaseIntegerNode;
+import com.igoryan.model.IntegerBaseNode;
 import com.igoryan.model.ShortestPathResult;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerRelaxationService;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -15,7 +16,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import lombok.NonNull;
 
-public class DejkstraAllPairsShortestPathServiceImpl<N extends BaseIntegerNode>
+public class DejkstraAllPairsShortestPathServiceImpl<N extends IntegerBaseNode>
     implements IntegerDejkstraAllPairsShortestPathService<N> {
 
   private final Map<ValueGraph<N, Integer>, Map<EndpointPair<N>, ShortestPathResult<N>>>
@@ -80,7 +81,7 @@ public class DejkstraAllPairsShortestPathServiceImpl<N extends BaseIntegerNode>
           }
           if (graph.isDirected()) {
             vertexPairToShortestPath.put(EndpointPair.ordered(source, node),
-                new ShortestPathResult<>(shortestPath, node.getShortestPathEstimate()));
+                new ShortestPathResult<>(new ArrayList<>(shortestPath), node.getShortestPathEstimate()));
           }
         });
   }

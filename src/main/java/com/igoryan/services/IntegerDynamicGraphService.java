@@ -1,11 +1,11 @@
 package com.igoryan.services;
 
 import com.google.common.graph.ValueGraph;
-import com.igoryan.model.BaseIntegerNode;
+import com.igoryan.model.IntegerBaseNode;
 import java.util.List;
 import lombok.NonNull;
 
-public interface IntegerDynamicGraphService<N extends BaseIntegerNode> {
+public interface IntegerDynamicGraphService<N extends IntegerBaseNode> {
 
   void update(@NonNull ValueGraph<N, Integer> graph, @NonNull N u, @NonNull N v, int newWeight);
 
