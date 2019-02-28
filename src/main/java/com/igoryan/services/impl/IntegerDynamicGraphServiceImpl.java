@@ -1,18 +1,22 @@
 package com.igoryan.services.impl;
 
-import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.igoryan.model.DataStructure;
 import com.igoryan.model.IntegerBaseNode;
+import com.igoryan.model.Path;
 import com.igoryan.services.IntegerDynamicGraphService;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import lombok.NonNull;
 
-public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode> implements IntegerDynamicGraphService<N> {
+public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
+    implements IntegerDynamicGraphService<N> {
 
-  private final Map<ValueGraph<N, Integer>, Map<EndpointPair<N>, DataStructure<N>>> graphToDataStructure = new HashMap<>();
+  private final Map<ValueGraph<N, Integer>, DataStructure<N>>
+      graphToDataStructure = new HashMap<>();
   private final IntegerDynamicAlgorithmHelper<N> dynamicAlgorithmHelper;
 
   public IntegerDynamicGraphServiceImpl(
@@ -37,5 +41,9 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode> implement
   public List<N> path(@NonNull final ValueGraph<N, Integer> graph, @NonNull final N src,
       @NonNull final N dst) {
     return null;
+  }
+
+  private void cleanUp(@NonNull ValueGraph<N, Integer> graph, @NonNull N node) {
+    final Queue<Path<N>> queue = new LinkedList<>();
   }
 }

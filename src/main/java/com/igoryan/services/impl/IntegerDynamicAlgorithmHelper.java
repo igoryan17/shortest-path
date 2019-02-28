@@ -4,12 +4,14 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
 import com.igoryan.model.DataStructure;
 import com.igoryan.model.IntegerBaseNode;
+import com.igoryan.model.Path;
 import com.igoryan.model.ShortestPathResult;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import lombok.NonNull;
 
 public class IntegerDynamicAlgorithmHelper<N extends IntegerBaseNode> {
 
@@ -27,142 +29,108 @@ public class IntegerDynamicAlgorithmHelper<N extends IntegerBaseNode> {
    * @param graphToDataStructure storage of data structure
    */
   public void init(ValueGraph<N, Integer> graph,
-      Map<ValueGraph<N, Integer>, Map<EndpointPair<N>, DataStructure<N>>> graphToDataStructure) {
-    graphToDataStructure.putIfAbsent(graph, new HashMap<>());
-    final Map<EndpointPair<N>, DataStructure<N>> vertexPairToDataStructure =
-        graphToDataStructure.get(graph);
+      Map<ValueGraph<N, Integer>, DataStructure<N>> graphToDataStructure) {
+    final DataStructure<N> dataStructure = graphToDataStructure
+        .computeIfAbsent(graph, k -> new DataStructure<>());
     final Map<EndpointPair<N>, ShortestPathResult<N>> result = dejkstraAllPairsShortestPathService
         .calculateAndGetResult(graph);
     // TODO: optimize it
-    for (EndpointPair<N> endpointPair : result.keySet()) {
-      final ShortestPathResult<N> shortestPathResult = result.get(endpointPair);
-      final List<N> shortestPath = shortestPathResult.getShortestPath();
-      vertexPairToDataStructure.compute(endpointPair, (k, dataStructure) -> {
-        if (dataStructure == null) {
-          dataStructure = new DataStructure<>(k);
-        }
-        dataStructure.setShortestPath(shortestPath);
-        dataStructure.getLocallyShortestPath().add(shortestPath);
-        return dataStructure;
-      });
-      if (shortestPath.isEmpty()) {
+    // check left side
+    // check right side
+    result.forEach((endpointPair, shortestPathResult) -> {
+      final List<N> shortestPathVertexes = shortestPathResult.getShortestPath();
+      final Path<N> shortestPath = new Path<>(endpointPair, shortestPathVertexes);
+      dataStructure.getShortestPath()
+          .put(endpointPair, new Path<>(endpointPair, shortestPathVertexes));
+      dataStructure.getLocallyShortestPath()
+          .computeIfAbsent(endpointPair, k -> new HashSet<>())
+          .add(shortestPath);
+      if (shortestPathVertexes.isEmpty()) {
         // TODO: it's unavailable handle and test it
-        continue;
+        throw new RuntimeException(String.format("empty shortest path of %s", endpointPair));
       }
-      final N firstNode = shortestPath.get(0);
-      final N lastNode = shortestPath.get(shortestPath.size() - 1);
-      if (shortestPath.size() > 2) {
-        handleRightSubShortestPath(graph, vertexPairToDataStructure, endpointPair, shortestPath,
-            lastNode);
-        handleLeftSubShortestPath(graph, vertexPairToDataStructure, endpointPair, shortestPath,
-            firstNode);
+      if (shortestPathVertexes.size() > 2) {
+        handleRightSubShortestPath(graph, dataStructure, shortestPath);
+        handleLeftSubShortestPath(graph, dataStructure, shortestPath);
       }
-      // check left side
-      handleLeftExtension(graph, vertexPairToDataStructure, result, shortestPath,
-          firstNode);
-      // check right side
-      handleRightExtension(graph, vertexPairToDataStructure, result, shortestPath, lastNode);
-    }
+      handleLeftExtension(graph, dataStructure, result, shortestPath);
+      handleRightExtension(graph, dataStructure, result, shortestPath);
+    });
   }
 
   /**
    * if shortest path is (A, B, C) then add it to set L* of BC vertex pair
    *
-   * @param graph                     source graph
-   * @param vertexPairToDataStructure data structure storage
-   * @param endpointPair              vertex pair with start and end of shortest path
-   * @param shortestPath              shortest path - chain of vertex
-   * @param lastNode                  last element in shortest path
+   * @param graph        source graph
+   * @param shortestPath shortest path - chain of vertex
    */
-  private void handleRightSubShortestPath(final ValueGraph<N, Integer> graph,
-      final Map<EndpointPair<N>, DataStructure<N>> vertexPairToDataStructure,
-      final EndpointPair<N> endpointPair, final List<N> shortestPath, final N lastNode) {
-    final N secondNode = shortestPath.get(1);
-    final EndpointPair<N> subPathVertexKey = vertexPair(secondNode, lastNode, graph);
-    vertexPairToDataStructure.compute(subPathVertexKey, (k, dataStructure) -> {
-      if (dataStructure == null) {
-        dataStructure = new DataStructure<>(k);
-      }
-      dataStructure.getLeftExtensionOfShortestPaths().put(endpointPair, shortestPath);
-      return dataStructure;
-    });
+  private void handleRightSubShortestPath(@NonNull final ValueGraph<N, Integer> graph,
+      @NonNull DataStructure<N> dataStructure, @NonNull Path<N> shortestPath) {
+    final Path<N> subShortest = rightSubPath(graph, shortestPath);
+    dataStructure.getLeftExtensionOfShortestPaths()
+        .computeIfAbsent(subShortest, k -> new HashSet<>())
+        .add(shortestPath);
+    dataStructure.getLeftExtensionOfLocallyShortestPaths()
+        .computeIfAbsent(subShortest, k -> new HashSet<>())
+        .add(shortestPath);
   }
 
   /**
    * if shortest path is (A, B, C) then add it to set R* of BC vertex pair
    *
-   * @param graph                     source graph
-   * @param vertexPairToDataStructure data structure storage
-   * @param endpointPair              vertex pair with start and end of shortest path
-   * @param shortestPath              shortest path - chain of vertex
-   * @param firstNode                 last element in shortest path
+   * @param graph        source graph
+   * @param shortestPath shortest path - chain of vertex
    */
-  private void handleLeftSubShortestPath(final ValueGraph<N, Integer> graph,
-      final Map<EndpointPair<N>, DataStructure<N>> vertexPairToDataStructure,
-      final EndpointPair<N> endpointPair, final List<N> shortestPath, final N firstNode) {
-    final N beforeLastNode = shortestPath.get(shortestPath.size() - 2);
-    final EndpointPair<N> subPathVertexKey = vertexPair(firstNode, beforeLastNode, graph);
-    vertexPairToDataStructure.compute(subPathVertexKey, (k, dataStructure) -> {
-      if (dataStructure == null) {
-        dataStructure = new DataStructure<>(k);
-      }
-      dataStructure.getRightExtensionOfShortestPaths().put(endpointPair, shortestPath);
-      return dataStructure;
-    });
+  private void handleLeftSubShortestPath(@NonNull final ValueGraph<N, Integer> graph,
+      @NonNull DataStructure<N> dataStructure, @NonNull Path<N> shortestPath) {
+    final Path<N> subShortest = leftSubPath(graph, shortestPath);
+    dataStructure.getRightExtensionOfShortestPaths()
+        .computeIfAbsent(subShortest, k -> new HashSet<>())
+        .add(shortestPath);
+    dataStructure.getRightExtensionOfLocallyShortestPaths()
+        .computeIfAbsent(subShortest, k -> new HashSet<>())
+        .add(shortestPath);
   }
 
   /**
    * if shortest path is (A, B, C) then iterate in each successor D of C and
    * add to R(A, C) and P(A, D) path (A, B, C, D) if (A, B, C, D) local shortest path
    *
-   * @param graph                     source path
-   * @param vertexPairToDataStructure data structure storage
-   * @param result                    calculated shortest paths storage
-   * @param shortestPath              shortest path - chain of vertex
-   * @param lastNode                  last element in shortest path
+   * @param graph        source path
+   * @param result       calculated shortest paths storage
+   * @param shortestPath shortest path - chain of vertex
    */
-  private void handleRightExtension(final ValueGraph<N, Integer> graph,
-      final Map<EndpointPair<N>, DataStructure<N>> vertexPairToDataStructure,
-      final Map<EndpointPair<N>, ShortestPathResult<N>> result,
-      final List<N> shortestPath, final N lastNode) {
-    final LinkedList<N> localShortestCandidate = new LinkedList<>(shortestPath);
+  private void handleRightExtension(@NonNull final ValueGraph<N, Integer> graph,
+      @NonNull final DataStructure<N> dataStructure,
+      @NonNull final Map<EndpointPair<N>, ShortestPathResult<N>> result,
+      @NonNull final Path<N> shortestPath) {
+    final List<N> shortestPathVertexes = shortestPath.getVertexChain();
+    final N lastNode = shortestPathVertexes.get(shortestPathVertexes.size() - 1);
+    final LinkedList<N> localShortestCandidate = new LinkedList<>(shortestPathVertexes);
     for (N node : graph.successors(lastNode)) {
       localShortestCandidate.addLast(node);
       final N first = localShortestCandidate.pollFirst();
       final N afterFirst = localShortestCandidate.getFirst();
-      final EndpointPair<N> mustShortest = vertexPair(afterFirst, node, graph);
-      final EndpointPair<N> localCandidate = vertexPair(first, node, graph);
-      final ShortestPathResult<N> mustBeShortestWithEqualWay = result.get(mustShortest);
-      if (mustBeShortestWithEqualWay.getShortestPath().equals(localShortestCandidate)) {
+      final EndpointPair<N> rightShortestVertexes = vertexPair(afterFirst, node, graph);
+      final EndpointPair<N> localCandidateVertexes = vertexPair(first, node, graph);
+      final ShortestPathResult<N> rightShortestPathResult = result.get(rightShortestVertexes);
+      if (localShortestCandidate.equals(rightShortestPathResult.getShortestPath())) {
         localShortestCandidate.addFirst(first);
+        final Path<N> localShortestPath =
+            new Path<>(localCandidateVertexes, localShortestCandidate);
         // add as local shortest
-        vertexPairToDataStructure.compute(localCandidate, (k, dataStructure) -> {
-          if (dataStructure == null) {
-            dataStructure = new DataStructure<>(k);
-          }
-          dataStructure.getLocallyShortestPath().add(localShortestCandidate);
-          return dataStructure;
-        });
-        final EndpointPair<N> sourcePathPair = vertexPair(first, lastNode, graph);
+        dataStructure.getLocallyShortestPath()
+            .computeIfAbsent(localCandidateVertexes, k -> new HashSet<>())
+            .add(localShortestPath);
         // add as right extension
-        vertexPairToDataStructure
-            .compute(sourcePathPair, (k, dataStructure) -> {
-              if (dataStructure == null) {
-                dataStructure = new DataStructure<>(k);
-              }
-              dataStructure.getRightExtensionOfLocallyShortestPaths()
-                  .put(localCandidate, localShortestCandidate);
-              return dataStructure;
-            });
-        if (localShortestCandidate.equals(result.get(sourcePathPair).getShortestPath())) {
-          vertexPairToDataStructure.compute(sourcePathPair, (k, dataStructure) -> {
-            if (dataStructure == null) {
-              dataStructure = new DataStructure<>(k);
-            }
-            dataStructure.getRightExtensionOfShortestPaths()
-                .put(vertexPair(first, node, graph), localShortestCandidate);
-            return dataStructure;
-          });
+        dataStructure.getRightExtensionOfLocallyShortestPaths()
+            .computeIfAbsent(shortestPath, k -> new HashSet<>())
+            .add(localShortestPath);
+        if (localShortestCandidate
+            .equals(result.get(localCandidateVertexes).getShortestPath())) {
+          dataStructure.getRightExtensionOfShortestPaths()
+              .computeIfAbsent(shortestPath, k -> new HashSet<>())
+              .add(localShortestPath);
         }
       }
     }
@@ -172,56 +140,41 @@ public class IntegerDynamicAlgorithmHelper<N extends IntegerBaseNode> {
    * if shortest path is (B, C, D) then iterate in each predecessor A of B and add to L(B, D)
    * and P(A, D) path (A, B, C, D) if (A, B, C, D) local shortest path
    *
-   * @param graph                     source graph
-   * @param vertexPairToDataStructure data structure storage
-   * @param result                    calculated shortest paths storage
-   * @param shortestPath              shortest path - chain of vertex
-   * @param firstNode                 first element in shortest path
+   * @param graph        source graph
+   * @param result       calculated shortest paths storage
+   * @param shortestPath shortest path - chain of vertex
    */
-  private void handleLeftExtension(final ValueGraph<N, Integer> graph,
-      final Map<EndpointPair<N>, DataStructure<N>> vertexPairToDataStructure,
-      final Map<EndpointPair<N>, ShortestPathResult<N>> result,
-      final List<N> shortestPath, final N firstNode) {
-    final LinkedList<N> localShortestCandidate = new LinkedList<>(shortestPath);
+  private void handleLeftExtension(@NonNull final ValueGraph<N, Integer> graph,
+      @NonNull final DataStructure<N> dataStructure,
+      @NonNull final Map<EndpointPair<N>, ShortestPathResult<N>> result,
+      @NonNull final Path<N> shortestPath) {
+    final List<N> shortestPathVertexes = shortestPath.getVertexChain();
+    final N firstNode = shortestPathVertexes.get(0);
+    final LinkedList<N> localShortestCandidate = new LinkedList<>(shortestPathVertexes);
     for (N node : graph.predecessors(firstNode)) {
       localShortestCandidate.addFirst(node);
       // check that left without last shortest
       final N last = localShortestCandidate.pollLast();
       final N beforeLast = localShortestCandidate.getLast();
-
-      final EndpointPair<N> mustShortest = vertexPair(node, beforeLast, graph);
-      final EndpointPair<N> localCandidate = vertexPair(node, last, graph);
-      final ShortestPathResult<N> mustBeShortestWithEqualsWay = result.get(mustShortest);
-      if (mustBeShortestWithEqualsWay.getShortestPath().equals(localShortestCandidate)) {
+      final EndpointPair<N> leftShortestVertexes = vertexPair(node, beforeLast, graph);
+      final EndpointPair<N> localCandidateVertexes = vertexPair(node, last, graph);
+      final ShortestPathResult<N> leftShortestPathResult = result.get(leftShortestVertexes);
+      if (localShortestCandidate.equals(leftShortestPathResult.getShortestPath())) {
         localShortestCandidate.addLast(last);
+        final Path<N> localShortestPath =
+            new Path<>(localCandidateVertexes, localShortestCandidate);
         // add as local shortest
-        vertexPairToDataStructure.compute(localCandidate, (k, dataStructure) -> {
-          if (dataStructure == null) {
-            dataStructure = new DataStructure<>(k);
-          }
-          dataStructure.getLocallyShortestPath().add(localShortestCandidate);
-          return dataStructure;
-        });
+        dataStructure.getLocallyShortestPath()
+            .computeIfAbsent(localCandidateVertexes, k -> new HashSet<>())
+            .add(localShortestPath);
         // add as left extension
-        final EndpointPair<N> sourcePathPair = vertexPair(firstNode, last, graph);
-        vertexPairToDataStructure
-            .compute(sourcePathPair, (k, dataStructure) -> {
-              if (dataStructure == null) {
-                dataStructure = new DataStructure<>(k);
-              }
-              dataStructure.getLeftExtensionOfLocallyShortestPaths()
-                  .put(localCandidate, localShortestCandidate);
-              return dataStructure;
-            });
-        if (localShortestCandidate.equals(result.get(sourcePathPair).getShortestPath())) {
-          vertexPairToDataStructure.compute(sourcePathPair, (k, dataStructure) -> {
-            if (dataStructure == null) {
-              dataStructure = new DataStructure<>(k);
-            }
-            dataStructure.getLeftExtensionOfShortestPaths()
-                .put(vertexPair(node, last, graph), localShortestCandidate);
-            return dataStructure;
-          });
+        dataStructure.getLeftExtensionOfLocallyShortestPaths()
+            .computeIfAbsent(shortestPath, k -> new HashSet<>())
+            .add(localShortestPath);
+        if (localShortestCandidate.equals(result.get(localCandidateVertexes).getShortestPath())) {
+          dataStructure.getLeftExtensionOfShortestPaths()
+              .computeIfAbsent(shortestPath, k -> new HashSet<>())
+              .add(localShortestPath);
         }
       }
     }
@@ -233,9 +186,21 @@ public class IntegerDynamicAlgorithmHelper<N extends IntegerBaseNode> {
    * @param graph  source graph
    * @return vertex pair depend on type of graph
    */
-  private EndpointPair<N> vertexPair(N source, N target, ValueGraph<N, Integer> graph) {
+  EndpointPair<N> vertexPair(N source, N target, ValueGraph<N, Integer> graph) {
     return graph.isDirected()
         ? EndpointPair.ordered(source, target)
         : EndpointPair.unordered(source, target);
+  }
+
+  Path<N> rightSubPath(@NonNull ValueGraph<N, Integer> graph, @NonNull Path<N> sourcePath) {
+    final List<N> result =
+        sourcePath.getVertexChain().subList(1, sourcePath.getVertexChain().size() - 1);
+    return new Path<>(vertexPair(result.get(0), result.get(result.size() - 1), graph), result);
+  }
+
+  Path<N> leftSubPath(@NonNull ValueGraph<N, Integer> graph, @NonNull Path<N> sourcePath) {
+    final List<N> result =
+        sourcePath.getVertexChain().subList(0, sourcePath.getVertexChain().size() - 2);
+    return new Path<>(vertexPair(result.get(0), result.get(result.size() - 1), graph), result);
   }
 }
