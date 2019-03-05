@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class DataStructure<N extends IntegerBaseNode> {
 
   private Map<EndpointPair<N>, Set<Path<N>>> locallyShortestPath = new HashMap<>();
-  private Map<EndpointPair<N>, Path<N>> shortestPath = new HashMap<>(); // unique shortest paths
+  private Map<EndpointPair<N>, Set<Path<N>>> shortestPath = new HashMap<>();
   private Map<Path<N>, Set<Path<N>>> leftExtensionOfLocallyShortestPaths = new HashMap<>();
   private Map<Path<N>, Set<Path<N>>> leftExtensionOfShortestPaths = new HashMap<>();
   private Map<Path<N>, Set<Path<N>>> rightExtensionOfLocallyShortestPaths = new HashMap<>();

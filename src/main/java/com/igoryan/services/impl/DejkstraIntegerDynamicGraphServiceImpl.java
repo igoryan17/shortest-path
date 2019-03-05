@@ -4,6 +4,7 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.igoryan.model.IntegerBaseNode;
+import com.igoryan.model.WeightUpdating;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerDynamicGraphService;
 import java.util.List;
@@ -19,8 +20,8 @@ public class DejkstraIntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
   }
 
   @Override
-  public void update(final ValueGraph<N, Integer> graph,
-      final N u, final N v, final int newWeight) {
+  public void update(final MutableValueGraph<N, Integer> graph,
+      final WeightUpdating<N> weightUpdating) {
     ((MutableValueGraph) graph).putEdgeValue(u, v, newWeight);
     dejkstraAllPairsShortestPathService.calculate(graph);
   }
