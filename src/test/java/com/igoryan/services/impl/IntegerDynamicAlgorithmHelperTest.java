@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
@@ -54,7 +53,8 @@ public class IntegerDynamicAlgorithmHelperTest {
     // check shortest path
     assertThat(dataStructure.getShortestPath().keySet(), hasSize(1));
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(ab));
-    assertThat(dataStructure.getShortestPath().get(ab).getVertexChain(), contains(first, second));
+    assertThat(dataStructure.getShortestPath().get(ab).iterator().next().getVertexChain(),
+        contains(first, second));
     // check local shortest path
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasSize(1));
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasItem(ab));
@@ -103,7 +103,7 @@ public class IntegerDynamicAlgorithmHelperTest {
     final DataStructure<Node> dataStructure = graphToDataStructure.get(graph);
     // check path <A, B>
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(ab));
-    assertThat(dataStructure.getShortestPath().get(ab), is(pathAB));
+    assertThat(dataStructure.getShortestPath().get(ab), hasItem(pathAB));
     assertThat(dataStructure.getLocallyShortestPath().get(ab), hasItem(pathAB));
     assertThat(dataStructure.getRightExtensionOfShortestPaths().keySet(), hasItem(pathAB));
     assertThat(dataStructure.getRightExtensionOfShortestPaths().get(pathAB), hasItem(pathABC));
@@ -115,7 +115,7 @@ public class IntegerDynamicAlgorithmHelperTest {
         not(hasItem(pathAB)));
     // check path <B, C>
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(bc));
-    assertThat(dataStructure.getShortestPath().get(bc), is(pathBC));
+    assertThat(dataStructure.getShortestPath().get(bc), hasItem(pathBC));
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasItem(bc));
     assertThat(dataStructure.getLocallyShortestPath().get(bc), hasItem(pathBC));
     assertThat(dataStructure.getLeftExtensionOfShortestPaths().keySet(), hasItem(pathBC));
@@ -128,7 +128,7 @@ public class IntegerDynamicAlgorithmHelperTest {
         not(hasItem(pathBC)));
     // check data structure AC
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(ac));
-    assertThat(dataStructure.getShortestPath().get(ac), is(pathABC));
+    assertThat(dataStructure.getShortestPath().get(ac), hasItem(pathABC));
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasItem(ac));
     assertThat(dataStructure.getLocallyShortestPath().get(ac), hasSize(1));
     assertThat(dataStructure.getLocallyShortestPath().get(ac), hasItem(pathABC));
@@ -180,7 +180,7 @@ public class IntegerDynamicAlgorithmHelperTest {
     final DataStructure<Node> dataStructure = graphToDataStructure.get(graph);
     // check path <A, B>
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(ab));
-    assertThat(dataStructure.getShortestPath().get(ab), is(pathAB));
+    assertThat(dataStructure.getShortestPath().get(ab), hasItem(pathAB));
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasItem(ab));
     assertThat(dataStructure.getLocallyShortestPath().get(ab), hasSize(1));
     assertThat(dataStructure.getLocallyShortestPath().get(ab), hasItem(pathAB));
@@ -194,7 +194,7 @@ public class IntegerDynamicAlgorithmHelperTest {
     assertThat(dataStructure.getLeftExtensionOfShortestPaths().keySet(), not(hasItem(pathAB)));
     // check path <B, C>
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(bc));
-    assertThat(dataStructure.getShortestPath().get(bc), is(pathBC));
+    assertThat(dataStructure.getShortestPath().get(bc), hasItem(pathBC));
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasItem(bc));
     assertThat(dataStructure.getLocallyShortestPath().get(bc), hasSize(1));
     assertThat(dataStructure.getLocallyShortestPath().get(bc), hasItem(pathBC));
@@ -207,7 +207,7 @@ public class IntegerDynamicAlgorithmHelperTest {
         hasItem(pathABC));
     // check data structure AC
     assertThat(dataStructure.getShortestPath().keySet(), hasItem(ac));
-    assertThat(dataStructure.getShortestPath().get(ac), is(pathAC));
+    assertThat(dataStructure.getShortestPath().get(ac), hasItem(pathAC));
     assertThat(dataStructure.getLocallyShortestPath().keySet(), hasItem(ac));
     assertThat(dataStructure.getLocallyShortestPath().get(ac), hasSize(2));
     assertThat(dataStructure.getLocallyShortestPath().get(ac), hasItems(pathAC, pathABC));

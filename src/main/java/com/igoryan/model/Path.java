@@ -13,5 +13,5 @@ public class Path<N extends IntegerBaseNode> {
 
   private final EndpointPair<N> fistAndLast;
   private final List<N> vertexChain;
-  private int weight;
+  private long weight;
 }

@@ -7,6 +7,7 @@ import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableValueGraph;
 import com.google.common.graph.ValueGraph;
 import com.igoryan.model.DataStructure;
+import com.igoryan.model.GraphWrapper;
 import com.igoryan.model.IntegerBaseNode;
 import com.igoryan.model.Path;
 import com.igoryan.model.WeightUpdating;
@@ -19,6 +20,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.stream.Stream;
@@ -27,7 +29,7 @@ import lombok.NonNull;
 public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
     implements IntegerDynamicGraphService<N> {
 
-  private final Map<ValueGraph<N, Integer>, DataStructure<N>>
+  private final Map<GraphWrapper<N>, DataStructure<N>>
       graphToDataStructure = new HashMap<>();
   private final IntegerDynamicAlgorithmHelper<N> dynamicAlgorithmHelper;
 
@@ -37,40 +39,50 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
   }
 
   @Override
-  public void update(final MutableValueGraph<N, Integer> graph,
+  public void update(final GraphWrapper<N> graphWrapper,
       final WeightUpdating<N> weightUpdating) {
-    cleanUp(graph, weightUpdating.getNode());
-    fixUp(graph, weightUpdating);
+    final DataStructure<N> dataStructure =
+        graphToDataStructure.computeIfAbsent(graphWrapper, k -> new DataStructure<>());
+    MutableValueGraph<N, Integer> graph = graphWrapper.getGraph();
+    cleanUp(graph, dataStructure, weightUpdating.getNode());
+    fixUp(graph, dataStructure, weightUpdating);
   }
 
   @Override
-  public long distance(@NonNull final ValueGraph<N, Integer> graph, @NonNull final N src,
+  public long distance(final GraphWrapper<N> graphWrapper, @NonNull final N src,
       @NonNull final N dst) {
-    final DataStructure<N> dataStructure = graphToDataStructure.get(graph);
-    final Path<N> path =
-        dataStructure.getShortestPath().get(dynamicAlgorithmHelper.vertexPair(src, dst, graph));
-    if (path == null) {
-      return Long.MAX_VALUE;
-    } else {
-      return dynamicAlgorithmHelper.weight(graph, path);
-    }
+    final MutableValueGraph<N, Integer> graph = graphWrapper.getGraph();
+    final DataStructure<N> dataStructure = graphToDataStructure.get(graphWrapper);
+    final Optional<Path<N>> path =
+        dataStructure.getShortestPath()
+            .get(dynamicAlgorithmHelper.vertexPair(src, dst, graph)).stream()
+            .min(Comparator.comparing(Path::getWeight));
+    return path.map(Path::getWeight).orElse(Long.MAX_VALUE);
   }
 
   @Override
-  public List<N> path(@NonNull final ValueGraph<N, Integer> graph, @NonNull final N src,
+  public List<N> path(final GraphWrapper<N> graphWrapper, @NonNull final N src,
       @NonNull final N dst) {
-    return null;
+    return graphToDataStructure.get(graphWrapper).getShortestPath()
+        .getOrDefault(dynamicAlgorithmHelper.vertexPair(src, dst, graphWrapper.getGraph()),
+            Collections.emptySet())
+        .stream()
+        .min(Comparator.comparing(Path::getWeight))
+        .map(Path::getVertexChain)
+        .orElse(null);
   }
 
-  private void cleanUp(@NonNull ValueGraph<N, Integer> graph, @NonNull N node) {
-    final DataStructure<N> dataStructure = graphToDataStructure.get(graph);
+  private void cleanUp(@NonNull ValueGraph<N, Integer> graph,
+      @NonNull DataStructure<N> dataStructure, @NonNull N node) {
     final Queue<Path<N>> queue = new LinkedList<>();
     queue.add(new Path<>(dynamicAlgorithmHelper.vertexPair(node, node, graph),
         Lists.newArrayList(node)));
     while (!queue.isEmpty()) {
       final Path<N> path = queue.poll();
-      Stream.concat(dataStructure.getLeftExtensionOfLocallyShortestPaths().get(path).stream(),
-          dataStructure.getRightExtensionOfLocallyShortestPaths().get(path).stream())
+      Stream.concat(dataStructure.getLeftExtensionOfLocallyShortestPaths()
+              .getOrDefault(path, Collections.emptySet()).stream(),
+          dataStructure.getRightExtensionOfLocallyShortestPaths()
+              .getOrDefault(path, Collections.emptySet()).stream())
           .forEach(extendedPath -> {
             queue.add(extendedPath);
             dataStructure.getLocallyShortestPath()
@@ -99,8 +111,8 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
   }
 
   private void fixUp(@NonNull MutableValueGraph<N, Integer> graph,
+      final DataStructure<N> dataStructure,
       @NonNull WeightUpdating<N> weightUpdating) {
-    final DataStructure<N> dataStructure = graphToDataStructure.get(graph);
     final Comparator<Path<N>> pathComparator = (path, other) ->
         (int) (dynamicAlgorithmHelper.weight(graph, path)
             - dynamicAlgorithmHelper.weight(graph, other));
@@ -117,9 +129,9 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
       final Map<Path<N>, Boolean> firstExtracted) {
     while (!queue.isEmpty()) {
       final Path<N> path = queue.poll();
-      if (firstExtracted.get(path)) {
+      if (firstExtracted.getOrDefault(path, Boolean.TRUE)) {
         firstExtracted.put(path, Boolean.FALSE);
-        if (dataStructure.getShortestPath()
+        if (!dataStructure.getShortestPath()
             .getOrDefault(path.getFistAndLast(), Collections.emptySet()).contains(path)) {
           dataStructure.getShortestPath()
               .computeIfAbsent(path.getFistAndLast(), k -> new HashSet<>())
@@ -137,11 +149,11 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
               .forEach(extension -> {
                 Path<N> leftAdded = dynamicAlgorithmHelper
                     .addAsFirst(graph, extension.getFistAndLast().source(), path);
-                int recalculatedWeightOfLeftAdded = graph
+                long recalculatedWeightOfLeftAdded = graph
                     .edgeValueOrDefault(leftAdded.getFistAndLast().source(),
                         extension.getFistAndLast().source(), MAX_VALUE) + path.getWeight();
                 graph.putEdgeValue(leftAdded.getFistAndLast().source(),
-                    extension.getFistAndLast().target(), recalculatedWeightOfLeftAdded);
+                    extension.getFistAndLast().target(), (int) recalculatedWeightOfLeftAdded);
                 leftAdded.setWeight(recalculatedWeightOfLeftAdded);
                 Path<N> leftSubPathOfLeftAdded =
                     dynamicAlgorithmHelper.leftSubPath(graph, leftAdded);
@@ -163,12 +175,12 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
               .forEach(extension -> {
                 Path<N> rightAdded = dynamicAlgorithmHelper
                     .addAsLast(graph, extension.getFistAndLast().target(), path);
-                int recalculatedWeightOfRightAdded = path.getWeight() + graph
+                long recalculatedWeightOfRightAdded = path.getWeight() + graph
                     .edgeValueOrDefault(path.getFistAndLast().target(),
                         extension.getFistAndLast().target(), MAX_VALUE);
                 rightAdded.setWeight(recalculatedWeightOfRightAdded);
                 graph.putEdgeValue(rightAdded.getFistAndLast().source(),
-                    rightAdded.getFistAndLast().target(), recalculatedWeightOfRightAdded);
+                    rightAdded.getFistAndLast().target(), (int) recalculatedWeightOfRightAdded);
                 Path<N> leftSubPathOfRightAdded =
                     dynamicAlgorithmHelper.leftSubPath(graph, rightAdded);
                 Path<N> rightSubPathOfRightAdded =
@@ -177,10 +189,10 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
                     .computeIfAbsent(rightAdded.getFistAndLast(), k -> new HashSet<>())
                     .add(rightAdded);
                 dataStructure.getLeftExtensionOfLocallyShortestPaths()
-                    .computeIfAbsent(rightSubPath, k -> new HashSet<>())
+                    .computeIfAbsent(rightSubPathOfRightAdded, k -> new HashSet<>())
                     .add(rightAdded);
                 dataStructure.getRightExtensionOfLocallyShortestPaths()
-                    .computeIfAbsent(leftSubPath, k -> new HashSet<>())
+                    .computeIfAbsent(leftSubPathOfRightAdded, k -> new HashSet<>())
                     .add(rightAdded);
                 queue.offer(rightAdded);
               });
@@ -224,11 +236,16 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
   private void phase1(final @NonNull MutableValueGraph<N, Integer> graph,
       final @NonNull WeightUpdating<N> weightUpdating, final DataStructure<N> dataStructure) {
     final N v = weightUpdating.getNode();
+    weightUpdating.getIncomingNodeToNewWeight().forEach((u, weight) -> {
+      graph.putEdgeValue(u, v, weight);
+    });
+    weightUpdating.getOutgoingNodeToNewWeight().forEach((u, weight) -> {
+      graph.putEdgeValue(v, u, weight);
+    });
     final EndpointPair<N> vv = dynamicAlgorithmHelper.vertexPair(v, v, graph);
     Path<N> pathVV = new Path<>(vv, Collections.singletonList(v));
     graph.predecessors(v).forEach(u -> {
       final Integer weightUV = weightUpdating.getIncomingNodeToNewWeight().get(u);
-      graph.putEdgeValue(u, v, weightUV);
       if (graph.edgeValueOrDefault(u, v, MAX_VALUE) < MAX_VALUE) {
         final EndpointPair<N> uv = dynamicAlgorithmHelper.vertexPair(u, v, graph);
         Path<N> pathUV = new Path<>(uv, Arrays.asList(u, v), weightUV);
@@ -247,7 +264,6 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
     });
     graph.successors(v).forEach(u -> {
       final Integer weightVU = weightUpdating.getOutgoingNodeToNewWeight().get(u);
-      graph.putEdgeValue(v, u, weightVU);
       if (graph.edgeValueOrDefault(v, u, MAX_VALUE) < MAX_VALUE) {
         final EndpointPair<N> vu = dynamicAlgorithmHelper.vertexPair(v, u, graph);
         Path<N> pathVU = new Path<>(vu, Arrays.asList(v, u), weightVU);

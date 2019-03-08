@@ -43,7 +43,8 @@ public class IntegerDynamicAlgorithmHelper<N extends IntegerBaseNode> {
       final List<N> shortestPathVertexes = shortestPathResult.getShortestPath();
       final Path<N> shortestPath = new Path<>(endpointPair, shortestPathVertexes);
       dataStructure.getShortestPath()
-          .put(endpointPair, new Path<>(endpointPair, shortestPathVertexes));
+          .computeIfAbsent(endpointPair, k -> new HashSet<>())
+          .add(new Path<>(endpointPair, shortestPathVertexes));
       dataStructure.getLocallyShortestPath()
           .computeIfAbsent(endpointPair, k -> new HashSet<>())
           .add(shortestPath);
