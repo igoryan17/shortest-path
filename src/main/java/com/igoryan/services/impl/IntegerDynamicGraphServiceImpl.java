@@ -25,7 +25,9 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.stream.Stream;
 import lombok.NonNull;
+import lombok.extern.log4j.Log4j2;
 
+@Log4j2
 public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
     implements IntegerDynamicGraphService<N> {
 
@@ -74,6 +76,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
 
   private void cleanUp(@NonNull ValueGraph<N, Integer> graph,
       @NonNull DataStructure<N> dataStructure, @NonNull N node) {
+    log.info("start cleanup; node: {}", node);
     final Queue<Path<N>> queue = new LinkedList<>();
     queue.add(new Path<>(dynamicAlgorithmHelper.vertexPair(node, node, graph),
         Lists.newArrayList(node)));
@@ -119,91 +122,98 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
     phase1(graph, weightUpdating, dataStructure);
     final PriorityQueue<Path<N>> queue =
         new PriorityQueue<>(graph.nodes().size() * graph.nodes().size(), pathComparator);
-    final Map<Path<N>, Boolean> firstExtracted = new HashMap<>();
+    final Map<EndpointPair<N>, Boolean> firstExtracted = new HashMap<>();
     phase2(graph, dataStructure, pathComparator, queue, firstExtracted);
     phase3(graph, dataStructure, queue, firstExtracted);
   }
 
   private void phase3(final @NonNull MutableValueGraph<N, Integer> graph,
       final DataStructure<N> dataStructure, final PriorityQueue<Path<N>> queue,
-      final Map<Path<N>, Boolean> firstExtracted) {
+      final Map<EndpointPair<N>, Boolean> firstExtracted) {
     while (!queue.isEmpty()) {
       final Path<N> path = queue.poll();
-      if (firstExtracted.getOrDefault(path, Boolean.TRUE)) {
-        firstExtracted.put(path, Boolean.FALSE);
+      if (firstExtracted.getOrDefault(path.getFistAndLast(), Boolean.TRUE)) {
+        firstExtracted.put(path.getFistAndLast(), Boolean.FALSE);
+        final Path<N> rightSubPath = dynamicAlgorithmHelper.rightSubPath(graph, path);
+        final Path<N> leftSubPath = dynamicAlgorithmHelper.leftSubPath(graph, path);
         if (!dataStructure.getShortestPath()
             .getOrDefault(path.getFistAndLast(), Collections.emptySet()).contains(path)) {
           dataStructure.getShortestPath()
               .computeIfAbsent(path.getFistAndLast(), k -> new HashSet<>())
               .add(path);
-          Path<N> rightSubPath = dynamicAlgorithmHelper.rightSubPath(graph, path);
           dataStructure.getLeftExtensionOfShortestPaths()
               .computeIfAbsent(rightSubPath, k -> new HashSet<>())
               .add(path);
-          Path<N> leftSubPath = dynamicAlgorithmHelper.leftSubPath(graph, path);
           dataStructure.getRightExtensionOfShortestPaths()
               .computeIfAbsent(leftSubPath, k -> new HashSet<>())
               .add(path);
-          dataStructure.getLeftExtensionOfShortestPaths()
-              .getOrDefault(leftSubPath, Collections.emptySet())
-              .forEach(extension -> {
-                Path<N> leftAdded = dynamicAlgorithmHelper
-                    .addAsFirst(graph, extension.getFistAndLast().source(), path);
-                long recalculatedWeightOfLeftAdded = graph
-                    .edgeValueOrDefault(leftAdded.getFistAndLast().source(),
-                        extension.getFistAndLast().source(), MAX_VALUE) + path.getWeight();
-                graph.putEdgeValue(leftAdded.getFistAndLast().source(),
-                    extension.getFistAndLast().target(), (int) recalculatedWeightOfLeftAdded);
-                leftAdded.setWeight(recalculatedWeightOfLeftAdded);
-                Path<N> leftSubPathOfLeftAdded =
-                    dynamicAlgorithmHelper.leftSubPath(graph, leftAdded);
-                Path<N> rightSubPathOfLeftAdded =
-                    dynamicAlgorithmHelper.rightSubPath(graph, leftAdded);
-                dataStructure.getLocallyShortestPath()
-                    .computeIfAbsent(leftAdded.getFistAndLast(), k -> new HashSet<>())
-                    .add(leftAdded);
-                dataStructure.getLeftExtensionOfLocallyShortestPaths()
-                    .computeIfAbsent(rightSubPathOfLeftAdded, k -> new HashSet<>())
-                    .add(leftAdded);
-                dataStructure.getRightExtensionOfLocallyShortestPaths()
-                    .computeIfAbsent(leftSubPathOfLeftAdded, k -> new HashSet<>())
-                    .add(leftAdded);
-                queue.offer(leftAdded);
-              });
-          dataStructure.getRightExtensionOfShortestPaths()
-              .getOrDefault(rightSubPath, Collections.emptySet())
-              .forEach(extension -> {
-                Path<N> rightAdded = dynamicAlgorithmHelper
-                    .addAsLast(graph, extension.getFistAndLast().target(), path);
-                long recalculatedWeightOfRightAdded = path.getWeight() + graph
-                    .edgeValueOrDefault(path.getFistAndLast().target(),
-                        extension.getFistAndLast().target(), MAX_VALUE);
-                rightAdded.setWeight(recalculatedWeightOfRightAdded);
-                graph.putEdgeValue(rightAdded.getFistAndLast().source(),
-                    rightAdded.getFistAndLast().target(), (int) recalculatedWeightOfRightAdded);
-                Path<N> leftSubPathOfRightAdded =
-                    dynamicAlgorithmHelper.leftSubPath(graph, rightAdded);
-                Path<N> rightSubPathOfRightAdded =
-                    dynamicAlgorithmHelper.rightSubPath(graph, rightAdded);
-                dataStructure.getLocallyShortestPath()
-                    .computeIfAbsent(rightAdded.getFistAndLast(), k -> new HashSet<>())
-                    .add(rightAdded);
-                dataStructure.getLeftExtensionOfLocallyShortestPaths()
-                    .computeIfAbsent(rightSubPathOfRightAdded, k -> new HashSet<>())
-                    .add(rightAdded);
-                dataStructure.getRightExtensionOfLocallyShortestPaths()
-                    .computeIfAbsent(leftSubPathOfRightAdded, k -> new HashSet<>())
-                    .add(rightAdded);
-                queue.offer(rightAdded);
-              });
         }
+        dataStructure.getLeftExtensionOfShortestPaths()
+            .getOrDefault(leftSubPath, Collections.emptySet())
+            .forEach(extension -> {
+              log.debug("left extension shortest path: {}", extension);
+              Path<N> leftAdded = dynamicAlgorithmHelper
+                  .addAsFirst(graph, extension.getFistAndLast().source(), path);
+              log.debug("extend to left path; toLeftExtended: {}", leftAdded);
+              long recalculatedWeightOfLeftAdded = graph
+                  .edgeValueOrDefault(leftAdded.getFistAndLast().source(),
+                      path.getFistAndLast().source(), MAX_VALUE) + path.getWeight();
+              log.debug("relaxation; weight: {}, path: {}", recalculatedWeightOfLeftAdded, path);
+              graph.putEdgeValue(leftAdded.getFistAndLast().source(),
+                  extension.getFistAndLast().target(), (int) recalculatedWeightOfLeftAdded);
+              leftAdded.setWeight(recalculatedWeightOfLeftAdded);
+              Path<N> leftSubPathOfLeftAdded =
+                  dynamicAlgorithmHelper.leftSubPath(graph, leftAdded);
+              Path<N> rightSubPathOfLeftAdded =
+                  dynamicAlgorithmHelper.rightSubPath(graph, leftAdded);
+              dataStructure.getLocallyShortestPath()
+                  .computeIfAbsent(leftAdded.getFistAndLast(), k -> new HashSet<>())
+                  .add(leftAdded);
+              dataStructure.getLeftExtensionOfLocallyShortestPaths()
+                  .computeIfAbsent(rightSubPathOfLeftAdded, k -> new HashSet<>())
+                  .add(leftAdded);
+              dataStructure.getRightExtensionOfLocallyShortestPaths()
+                  .computeIfAbsent(leftSubPathOfLeftAdded, k -> new HashSet<>())
+                  .add(leftAdded);
+              queue.add(leftAdded);
+            });
+        dataStructure.getRightExtensionOfShortestPaths()
+            .getOrDefault(rightSubPath, Collections.emptySet())
+            .forEach(extension -> {
+              log.debug("right extension of shortest path: {}", extension);
+              Path<N> rightAdded = dynamicAlgorithmHelper
+                  .addAsLast(graph, extension.getFistAndLast().target(), path);
+              log.debug("extend to right path; toRightExtended: {}", rightAdded);
+              long recalculatedWeightOfRightAdded = path.getWeight() + graph
+                  .edgeValueOrDefault(path.getFistAndLast().target(),
+                      extension.getFistAndLast().target(), MAX_VALUE);
+              log.debug("relaxation; weight: {}, path: {}", recalculatedWeightOfRightAdded,
+                  rightAdded);
+              rightAdded.setWeight(recalculatedWeightOfRightAdded);
+              graph.putEdgeValue(rightAdded.getFistAndLast().source(),
+                  rightAdded.getFistAndLast().target(), (int) recalculatedWeightOfRightAdded);
+              Path<N> leftSubPathOfRightAdded =
+                  dynamicAlgorithmHelper.leftSubPath(graph, rightAdded);
+              Path<N> rightSubPathOfRightAdded =
+                  dynamicAlgorithmHelper.rightSubPath(graph, rightAdded);
+              dataStructure.getLocallyShortestPath()
+                  .computeIfAbsent(rightAdded.getFistAndLast(), k -> new HashSet<>())
+                  .add(rightAdded);
+              dataStructure.getLeftExtensionOfLocallyShortestPaths()
+                  .computeIfAbsent(rightSubPathOfRightAdded, k -> new HashSet<>())
+                  .add(rightAdded);
+              dataStructure.getRightExtensionOfLocallyShortestPaths()
+                  .computeIfAbsent(leftSubPathOfRightAdded, k -> new HashSet<>())
+                  .add(rightAdded);
+              queue.add(rightAdded);
+            });
       }
     }
   }
 
   private void phase2(final @NonNull MutableValueGraph<N, Integer> graph,
       final DataStructure<N> dataStructure, final Comparator<Path<N>> pathComparator,
-      final PriorityQueue<Path<N>> queue, final Map<Path<N>, Boolean> firstExtracted) {
+      final PriorityQueue<Path<N>> queue, final Map<EndpointPair<N>, Boolean> firstExtracted) {
     for (N x : graph.nodes()) {
       for (N y : graph.nodes()) {
         if (x.equals(y)) {
@@ -216,7 +226,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
             .min(pathComparator)
             .ifPresent(path -> {
               queue.add(path);
-              firstExtracted.put(path, Boolean.TRUE);
+              firstExtracted.put(path.getFistAndLast(), Boolean.TRUE);
             });
         if (graph.isDirected()) {
           final EndpointPair<N> yx = dynamicAlgorithmHelper.vertexPair(y, x, graph);
@@ -226,7 +236,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
               .min(pathComparator)
               .ifPresent(path -> {
                 queue.add(path);
-                firstExtracted.put(path, Boolean.TRUE);
+                firstExtracted.put(path.getFistAndLast(), Boolean.TRUE);
               });
         }
       }
@@ -256,7 +266,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
             .computeIfAbsent(pathVV, k -> new HashSet<>())
             .add(pathUV);
         final EndpointPair<N> uu = dynamicAlgorithmHelper.vertexPair(u, u, graph);
-        Path<N> pathUU = new Path<>(uu, Collections.singletonList(u));
+        Path<N> pathUU = new Path<>(uu, Collections.singletonList(u), 0);
         dataStructure.getRightExtensionOfLocallyShortestPaths()
             .computeIfAbsent(pathUU, k -> new HashSet<>())
             .add(pathUV);
