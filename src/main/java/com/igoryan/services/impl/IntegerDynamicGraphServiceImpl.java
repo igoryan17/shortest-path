@@ -159,8 +159,6 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
                   .edgeValueOrDefault(leftAdded.getFistAndLast().source(),
                       path.getFistAndLast().source(), MAX_VALUE) + path.getWeight();
               log.debug("relaxation; weight: {}, path: {}", recalculatedWeightOfLeftAdded, path);
-              graph.putEdgeValue(leftAdded.getFistAndLast().source(),
-                  extension.getFistAndLast().target(), (int) recalculatedWeightOfLeftAdded);
               leftAdded.setWeight(recalculatedWeightOfLeftAdded);
               Path<N> leftSubPathOfLeftAdded =
                   dynamicAlgorithmHelper.leftSubPath(graph, leftAdded);
@@ -190,8 +188,6 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
               log.debug("relaxation; weight: {}, path: {}", recalculatedWeightOfRightAdded,
                   rightAdded);
               rightAdded.setWeight(recalculatedWeightOfRightAdded);
-              graph.putEdgeValue(rightAdded.getFistAndLast().source(),
-                  rightAdded.getFistAndLast().target(), (int) recalculatedWeightOfRightAdded);
               Path<N> leftSubPathOfRightAdded =
                   dynamicAlgorithmHelper.leftSubPath(graph, rightAdded);
               Path<N> rightSubPathOfRightAdded =
