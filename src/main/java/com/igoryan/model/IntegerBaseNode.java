@@ -4,13 +4,13 @@ import lombok.Data;
 import lombok.NonNull;
 
 @Data
-public class BaseIntegerNode implements Comparable<BaseIntegerNode> {
+public class IntegerBaseNode implements Comparable<IntegerBaseNode> {
 
   protected long shortestPathEstimate;
-  protected BaseIntegerNode predecessor;
+  protected IntegerBaseNode predecessor;
 
   @Override
-  public int compareTo(@NonNull final BaseIntegerNode o) {
+  public int compareTo(@NonNull final IntegerBaseNode o) {
     return Math.toIntExact(shortestPathEstimate - o.shortestPathEstimate);
   }
 }
