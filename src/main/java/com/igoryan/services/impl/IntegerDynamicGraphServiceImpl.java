@@ -6,9 +6,9 @@ import com.google.common.collect.Lists;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableValueGraph;
 import com.google.common.graph.ValueGraph;
+import com.google.inject.Inject;
 import com.igoryan.model.DataStructure;
 import com.igoryan.model.GraphWrapper;
-import com.igoryan.model.IntegerBaseNode;
 import com.igoryan.model.Path;
 import com.igoryan.model.WeightUpdating;
 import com.igoryan.services.IntegerDynamicGraphService;
@@ -18,23 +18,24 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
-public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
-    implements IntegerDynamicGraphService<N> {
+public class IntegerDynamicGraphServiceImpl<N> implements IntegerDynamicGraphService<N> {
 
   private final Map<GraphWrapper<N>, DataStructure<N>>
       graphToDataStructure = new HashMap<>();
   private final IntegerDynamicAlgorithmHelper<N> dynamicAlgorithmHelper;
 
+  @Inject
   public IntegerDynamicGraphServiceImpl(
       final IntegerDynamicAlgorithmHelper<N> dynamicAlgorithmHelper) {
     this.dynamicAlgorithmHelper = dynamicAlgorithmHelper;
@@ -63,15 +64,29 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
   }
 
   @Override
-  public List<N> path(final GraphWrapper<N> graphWrapper, @NonNull final N src,
+  public Path<N> path(final GraphWrapper<N> graphWrapper, @NonNull final N src,
       @NonNull final N dst) {
     return graphToDataStructure.get(graphWrapper).getShortestPath()
         .getOrDefault(dynamicAlgorithmHelper.vertexPair(src, dst, graphWrapper.getGraph()),
             Collections.emptySet())
         .stream()
         .min(Comparator.comparing(Path::getWeight))
-        .map(Path::getVertexChain)
         .orElse(null);
+  }
+
+  @Override
+  public void init(final GraphWrapper<N> graphWrapper) {
+    graphWrapper.getGraph().nodes().forEach(node -> {
+      final Map<N, Integer> incomingWeightUpdate = graphWrapper.getGraph().predecessors(node)
+          .stream()
+          .collect(Collectors
+              .toMap(k -> k, k -> graphWrapper.getGraph().edgeValueOrDefault(k, node, MAX_VALUE)));
+      final Map<N, Integer> outgoingWeightUpdate = graphWrapper.getGraph().successors(node)
+          .stream()
+          .collect(Collectors
+              .toMap(k -> k, k -> graphWrapper.getGraph().edgeValueOrDefault(node, k, MAX_VALUE)));
+      update(graphWrapper, new WeightUpdating<>(node, incomingWeightUpdate, outgoingWeightUpdate));
+    });
   }
 
   private void cleanUp(@NonNull ValueGraph<N, Integer> graph,
@@ -82,34 +97,35 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
         Lists.newArrayList(node)));
     while (!queue.isEmpty()) {
       final Path<N> path = queue.poll();
-      Stream.concat(dataStructure.getLeftExtensionOfLocallyShortestPaths()
+      Set<Path> forCleanUp = Stream.concat(dataStructure.getLeftExtensionOfLocallyShortestPaths()
               .getOrDefault(path, Collections.emptySet()).stream(),
           dataStructure.getRightExtensionOfLocallyShortestPaths()
-              .getOrDefault(path, Collections.emptySet()).stream())
-          .forEach(extendedPath -> {
-            queue.add(extendedPath);
-            dataStructure.getLocallyShortestPath()
-                .getOrDefault(extendedPath.getFistAndLast(), Collections.emptySet())
-                .removeIf(local -> local.equals(extendedPath));
-            final Path<N> rightSubPath = dynamicAlgorithmHelper.rightSubPath(graph, extendedPath);
-            dataStructure.getLeftExtensionOfLocallyShortestPaths()
-                .getOrDefault(rightSubPath, Collections.emptySet())
-                .removeIf(left -> left.equals(extendedPath));
-            final Path<N> leftSubPath = dynamicAlgorithmHelper.leftSubPath(graph, extendedPath);
-            dataStructure.getRightExtensionOfLocallyShortestPaths()
-                .getOrDefault(leftSubPath, Collections.emptySet())
-                .removeIf(right -> right.equals(extendedPath));
-            if (extendedPath
-                .equals(dataStructure.getShortestPath().get(extendedPath.getFistAndLast()))) {
-              dataStructure.getShortestPath().remove(extendedPath.getFistAndLast());
-              dataStructure.getLeftExtensionOfShortestPaths()
-                  .getOrDefault(rightSubPath, Collections.emptySet())
-                  .removeIf(left -> left.equals(extendedPath));
-              dataStructure.getRightExtensionOfShortestPaths()
-                  .getOrDefault(leftSubPath, Collections.emptySet())
-                  .removeIf(right -> right.equals(extendedPath));
-            }
-          });
+              .getOrDefault(path, Collections.emptySet()).stream()).collect(Collectors.toSet());
+      forCleanUp.forEach(extendedPath -> {
+        queue.add(extendedPath);
+        dataStructure.getLocallyShortestPath()
+            .getOrDefault(extendedPath.getFistAndLast(), Collections.emptySet())
+            .remove(extendedPath);
+        final Path<N> rightSubPath = dynamicAlgorithmHelper.rightSubPath(graph, extendedPath);
+        dataStructure.getLeftExtensionOfLocallyShortestPaths()
+            .getOrDefault(rightSubPath, Collections.emptySet())
+            .remove(extendedPath);
+        final Path<N> leftSubPath = dynamicAlgorithmHelper.leftSubPath(graph, extendedPath);
+        dataStructure.getRightExtensionOfLocallyShortestPaths()
+            .getOrDefault(leftSubPath, Collections.emptySet())
+            .remove(extendedPath);
+        if (dataStructure.getShortestPath()
+            .getOrDefault(extendedPath.getFistAndLast(), Collections.emptySet())
+            .contains(extendedPath)) {
+          dataStructure.getShortestPath().remove(extendedPath.getFistAndLast());
+          dataStructure.getLeftExtensionOfShortestPaths()
+              .getOrDefault(rightSubPath, Collections.emptySet())
+              .removeIf(left -> left.equals(extendedPath));
+          dataStructure.getRightExtensionOfShortestPaths()
+              .getOrDefault(leftSubPath, Collections.emptySet())
+              .removeIf(right -> right.equals(extendedPath));
+        }
+      });
     }
   }
 
@@ -138,6 +154,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
         final Path<N> leftSubPath = dynamicAlgorithmHelper.leftSubPath(graph, path);
         if (!dataStructure.getShortestPath()
             .getOrDefault(path.getFistAndLast(), Collections.emptySet()).contains(path)) {
+          log.debug("add path to shortest; path: {}", path);
           dataStructure.getShortestPath()
               .computeIfAbsent(path.getFistAndLast(), k -> new HashSet<>())
               .add(path);
@@ -161,7 +178,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
               log.debug("relaxation; weight: {}, path: {}", recalculatedWeightOfLeftAdded, path);
               leftAdded.setWeight(recalculatedWeightOfLeftAdded);
               Path<N> leftSubPathOfLeftAdded =
-                  dynamicAlgorithmHelper.leftSubPath(graph, leftAdded);
+                  dynamicAlgorithmHelper.leftSubPath(graph, extension);
               Path<N> rightSubPathOfLeftAdded =
                   dynamicAlgorithmHelper.rightSubPath(graph, leftAdded);
               dataStructure.getLocallyShortestPath()
@@ -191,7 +208,7 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
               Path<N> leftSubPathOfRightAdded =
                   dynamicAlgorithmHelper.leftSubPath(graph, rightAdded);
               Path<N> rightSubPathOfRightAdded =
-                  dynamicAlgorithmHelper.rightSubPath(graph, rightAdded);
+                  dynamicAlgorithmHelper.rightSubPath(graph, extension);
               dataStructure.getLocallyShortestPath()
                   .computeIfAbsent(rightAdded.getFistAndLast(), k -> new HashSet<>())
                   .add(rightAdded);
@@ -251,7 +268,8 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
     final EndpointPair<N> vv = dynamicAlgorithmHelper.vertexPair(v, v, graph);
     Path<N> pathVV = new Path<>(vv, Collections.singletonList(v));
     graph.predecessors(v).forEach(u -> {
-      final Integer weightUV = weightUpdating.getIncomingNodeToNewWeight().get(u);
+      final Integer weightUV = weightUpdating.getIncomingNodeToNewWeight()
+          .getOrDefault(u, graph.edgeValueOrDefault(u, v, MAX_VALUE));
       if (graph.edgeValueOrDefault(u, v, MAX_VALUE) < MAX_VALUE) {
         final EndpointPair<N> uv = dynamicAlgorithmHelper.vertexPair(u, v, graph);
         Path<N> pathUV = new Path<>(uv, Arrays.asList(u, v), weightUV);
@@ -269,7 +287,8 @@ public class IntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
       }
     });
     graph.successors(v).forEach(u -> {
-      final Integer weightVU = weightUpdating.getOutgoingNodeToNewWeight().get(u);
+      final Integer weightVU = weightUpdating.getOutgoingNodeToNewWeight()
+          .getOrDefault(u, graph.edgeValueOrDefault(v, u, MAX_VALUE));
       if (graph.edgeValueOrDefault(v, u, MAX_VALUE) < MAX_VALUE) {
         final EndpointPair<N> vu = dynamicAlgorithmHelper.vertexPair(v, u, graph);
         Path<N> pathVU = new Path<>(vu, Arrays.asList(v, u), weightVU);

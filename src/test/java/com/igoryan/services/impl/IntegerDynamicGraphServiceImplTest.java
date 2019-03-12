@@ -9,9 +9,7 @@ import com.google.common.graph.ValueGraphBuilder;
 import com.igoryan.model.GraphWrapper;
 import com.igoryan.model.Node;
 import com.igoryan.model.WeightUpdating;
-import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerDynamicGraphService;
-import com.igoryan.services.IntegerRelaxationService;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,12 +17,8 @@ import org.junit.Test;
 
 public class IntegerDynamicGraphServiceImplTest {
 
-  private final IntegerDejkstraAllPairsShortestPathService<Node>
-      dejkstraAllPairsShortestPathService = new DejkstraAllPairsShortestPathServiceImpl<>(
-      new IntegerRelaxationService<Node>() {
-      });
   private final IntegerDynamicAlgorithmHelper<Node> dynamicAlgorithmHelper =
-      new IntegerDynamicAlgorithmHelper<>(dejkstraAllPairsShortestPathService);
+      new IntegerDynamicAlgorithmHelper<>();
   private final IntegerDynamicGraphService<Node> dynamicGraphService =
       new IntegerDynamicGraphServiceImpl<>(dynamicAlgorithmHelper);
 
@@ -43,8 +37,53 @@ public class IntegerDynamicGraphServiceImplTest {
     graph.addNode(a);
     graph.addNode(b);
     dynamicGraphService.update(graphWrapper, weightUpdating);
-    assertThat(dynamicGraphService.path(graphWrapper, a, b), contains(a, b));
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, b));
     assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAB));
+  }
+
+  @Test
+  public void testCycle() {
+    //  a <- b
+    //  a -> b
+    //      /
+    //     c
+    final MutableValueGraph<Node, Integer> graph = ValueGraphBuilder.directed()
+        .expectedNodeCount(3)
+        .build();
+    final GraphWrapper<Node> graphWrapper = new GraphWrapper<>("1", graph);
+    final Node a = new Node("a");
+    final Node b = new Node("b");
+    final Node c = new Node("c");
+    final long weightAB = 1;
+    final long weightBA = 5;
+    final long weightCB = 3;
+    graph.addNode(a);
+    graph.addNode(b);
+    graph.addNode(c);
+    final WeightUpdating<Node> weightUpdatingA =
+        new WeightUpdating<>(a, Collections.singletonMap(b, (int) weightBA),
+            Collections.singletonMap(b, (int) weightAB));
+    dynamicGraphService.update(graphWrapper, weightUpdatingA);
+    final Map<Node, Integer> incomingUpdate = new HashMap<>(2);
+    incomingUpdate.put(c, (int) weightCB);
+    incomingUpdate.put(a, (int) weightAB);
+    final Map<Node, Integer> outgoingUpdate = new HashMap<>(1);
+    outgoingUpdate.put(a, (int) weightBA);
+    final WeightUpdating<Node> weightUpdatingB =
+        new WeightUpdating<>(b, incomingUpdate, outgoingUpdate);
+    dynamicGraphService.update(graphWrapper, weightUpdatingB);
+    // a -> b
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, b));
+    assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAB));
+    // b -> a
+    assertThat(dynamicGraphService.path(graphWrapper, b, a).getVertexChain(), contains(b, a));
+    assertThat(dynamicGraphService.distance(graphWrapper, b, a), is(weightBA));
+    // c -> b
+    assertThat(dynamicGraphService.path(graphWrapper, c, b).getVertexChain(), contains(c, b));
+    assertThat(dynamicGraphService.distance(graphWrapper, c, b), is(weightCB));
+    // c -> a
+    assertThat(dynamicGraphService.path(graphWrapper, c, a).getVertexChain(), contains(c, b, a));
+    assertThat(dynamicGraphService.distance(graphWrapper, c, a), is(weightCB + weightBA));
   }
 
   @Test
@@ -68,10 +107,10 @@ public class IntegerDynamicGraphServiceImplTest {
         new WeightUpdating<>(a, Collections.emptyMap(), outgoingUpdate);
     dynamicGraphService.update(graphWrapper, weightUpdating);
     // check a -> b
-    assertThat(dynamicGraphService.path(graphWrapper, a, b), contains(a, b));
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, b));
     assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAB));
     // check b -> c
-    assertThat(dynamicGraphService.path(graphWrapper, a, c), contains(a, c));
+    assertThat(dynamicGraphService.path(graphWrapper, a, c).getVertexChain(), contains(a, c));
     assertThat(dynamicGraphService.distance(graphWrapper, a, c), is(weightAC));
   }
 
@@ -98,13 +137,13 @@ public class IntegerDynamicGraphServiceImplTest {
         new WeightUpdating<>(a, Collections.emptyMap(), outgoingToWeight);
     dynamicGraphService.update(graphWrapper, weightUpdatingA);
     // check a -> c
-    assertThat(dynamicGraphService.path(graphWrapper, a, c), contains(a, c));
+    assertThat(dynamicGraphService.path(graphWrapper, a, c).getVertexChain(), contains(a, c));
     assertThat(dynamicGraphService.distance(graphWrapper, a, c), is(weightAC));
     // check a -> b
-    assertThat(dynamicGraphService.path(graphWrapper, a, b), contains(a, b));
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, b));
     assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAB));
     // check b -> c
-    assertThat(dynamicGraphService.path(graphWrapper, b, c), contains(b, c));
+    assertThat(dynamicGraphService.path(graphWrapper, b, c).getVertexChain(), contains(b, c));
     assertThat(dynamicGraphService.distance(graphWrapper, b, c), is(weightBC));
   }
 
@@ -126,13 +165,13 @@ public class IntegerDynamicGraphServiceImplTest {
         new WeightUpdating<>(c, Collections.singletonMap(b, (int) weightBC),
             Collections.emptyMap()));
     // check a -> b
-    assertThat(dynamicGraphService.path(graphWrapper, a, b), contains(a, b));
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, b));
     assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAB));
     // check b -> c
-    assertThat(dynamicGraphService.path(graphWrapper, b, c), contains(b, c));
+    assertThat(dynamicGraphService.path(graphWrapper, b, c).getVertexChain(), contains(b, c));
     assertThat(dynamicGraphService.distance(graphWrapper, b, c), is(weightBC));
     // check a -> b -> c
-    assertThat(dynamicGraphService.path(graphWrapper, a, c), contains(a, b, c));
+    assertThat(dynamicGraphService.path(graphWrapper, a, c).getVertexChain(), contains(a, b, c));
     assertThat(dynamicGraphService.distance(graphWrapper, a, c), is(weightAB + weightBC));
   }
 
@@ -170,16 +209,16 @@ public class IntegerDynamicGraphServiceImplTest {
             Collections.emptyMap());
     dynamicGraphService.update(graphWrapper, weightUpdatingD);
     // check path a -> c
-    assertThat(dynamicGraphService.path(graphWrapper, a, c), contains(a, c));
+    assertThat(dynamicGraphService.path(graphWrapper, a, c).getVertexChain(), contains(a, c));
     assertThat(dynamicGraphService.distance(graphWrapper, a, c), is(weightAC));
     // check path a -> b
-    assertThat(dynamicGraphService.path(graphWrapper, a, b), contains(a, b));
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, b));
     assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAB));
     // check path c -> b
-    assertThat(dynamicGraphService.path(graphWrapper, c, b), contains(c, b));
+    assertThat(dynamicGraphService.path(graphWrapper, c, b).getVertexChain(), contains(c, b));
     assertThat(dynamicGraphService.distance(graphWrapper, c, b), is(weightCB));
     // check path a -> b -> d
-    assertThat(dynamicGraphService.path(graphWrapper, a, d), contains(a, b, d));
+    assertThat(dynamicGraphService.path(graphWrapper, a, d).getVertexChain(), contains(a, b, d));
     assertThat(dynamicGraphService.distance(graphWrapper, a, d), is(weightAB + weightBD));
   }
 
@@ -229,20 +268,56 @@ public class IntegerDynamicGraphServiceImplTest {
     dynamicGraphService
         .update(graphWrapper, new WeightUpdating<>(d, incomingUpdateD, Collections.emptyMap()));
     // check a -> c
-    assertThat(dynamicGraphService.path(graphWrapper, a, c), contains(a, c));
+    assertThat(dynamicGraphService.path(graphWrapper, a, c).getVertexChain(), contains(a, c));
     assertThat(dynamicGraphService.distance(graphWrapper, a, c), is(weightAC));
     // check c -> b
-    assertThat(dynamicGraphService.path(graphWrapper, c, b), contains(c, b));
+    assertThat(dynamicGraphService.path(graphWrapper, c, b).getVertexChain(), contains(c, b));
     assertThat(dynamicGraphService.distance(graphWrapper, c, b), is(weightCB));
     // check a -> b
-    assertThat(dynamicGraphService.path(graphWrapper, a, b), contains(a, c, b));
+    assertThat(dynamicGraphService.path(graphWrapper, a, b).getVertexChain(), contains(a, c, b));
     assertThat(dynamicGraphService.distance(graphWrapper, a, b), is(weightAC + weightCB));
     // check a -> b -> d
-    assertThat(dynamicGraphService.path(graphWrapper, a, d), contains(a, c, b, d));
+    assertThat(dynamicGraphService.path(graphWrapper, a, d).getVertexChain(), contains(a, c, b, d));
     assertThat(dynamicGraphService.distance(graphWrapper, a, d),
         is(weightAC + weightCB + weightBD));
     // check b -> d
-    assertThat(dynamicGraphService.path(graphWrapper, b, d), contains(b, d));
+    assertThat(dynamicGraphService.path(graphWrapper, b, d).getVertexChain(), contains(b, d));
     assertThat(dynamicGraphService.distance(graphWrapper, b, d), is(weightBD));
+  }
+
+  @Test
+  public void testComplexGraph() {
+    MutableValueGraph<Node, Integer> graph = ValueGraphBuilder.directed()
+        .expectedNodeCount(10)
+        .build();
+    final Node a = new Node("a");
+    final Node b = new Node("b");
+    final Node c = new Node("c");
+    final Node d = new Node("d");
+    final Node e = new Node("e");
+    final int weightAE = 10;
+    graph.putEdgeValue(a, e, weightAE);
+    final int weightAD = 2;
+    graph.putEdgeValue(a, d, weightAD);
+    final int weightBA = 4;
+    graph.putEdgeValue(b, a, weightBA);
+    final int weightBE = 1;
+    graph.putEdgeValue(b, e, weightBE);
+    final int weightCE = 9;
+    graph.putEdgeValue(c, e, weightCE);
+    final int weightCB = 5;
+    graph.putEdgeValue(c, b, weightCB);
+    final int weightDC = 9;
+    graph.putEdgeValue(d, c, weightDC);
+    final int weightEA = 10;
+    graph.putEdgeValue(e, a, weightEA);
+    final int weightEB = 1;
+    graph.putEdgeValue(e, b, weightEB);
+    final int weightEC = 5;
+    graph.putEdgeValue(e, c, weightEC);
+    GraphWrapper<Node> graphWrapper = new GraphWrapper<>("", graph);
+    dynamicGraphService.init(graphWrapper);
+    System.out.println(dynamicGraphService.path(graphWrapper, b, d));
+    assertThat(dynamicGraphService.path(graphWrapper, b, d).getVertexChain(), contains(b, e, d));
   }
 }

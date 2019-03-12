@@ -6,7 +6,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(of = "id")
-public class GraphWrapper<N extends IntegerBaseNode> {
+public class GraphWrapper<N> {
 
   private final String id;
   private final MutableValueGraph<N, Integer> graph;

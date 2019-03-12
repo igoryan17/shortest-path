@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class DataStructure<N extends IntegerBaseNode> {
+public class DataStructure<N> {
 
   private Map<EndpointPair<N>, Set<Path<N>>> locallyShortestPath = new HashMap<>();
   private Map<EndpointPair<N>, Set<Path<N>>> shortestPath = new HashMap<>();

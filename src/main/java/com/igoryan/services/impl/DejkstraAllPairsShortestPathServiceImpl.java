@@ -3,6 +3,7 @@ package com.igoryan.services.impl;
 import com.google.common.collect.Lists;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.ValueGraph;
+import com.google.inject.Inject;
 import com.igoryan.model.IntegerBaseNode;
 import com.igoryan.model.ShortestPathResult;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
@@ -24,6 +25,7 @@ public class DejkstraAllPairsShortestPathServiceImpl<N extends IntegerBaseNode>
       new HashMap<>();
   private final IntegerRelaxationService<N> relaxationService;
 
+  @Inject
   public DejkstraAllPairsShortestPathServiceImpl(
       final IntegerRelaxationService<N> relaxationService) {
     this.relaxationService = relaxationService;
@@ -32,8 +34,6 @@ public class DejkstraAllPairsShortestPathServiceImpl<N extends IntegerBaseNode>
   @Override
   public void calculate(@NonNull final ValueGraph<N, Integer> graph) {
     graph.nodes().forEach(node -> calculate(graph, node));
-    final Map<EndpointPair<N>, ShortestPathResult<N>> vertexPairToShortestPath =
-        graphToShortestPaths.get(graph);
   }
 
   public void calculate(@NonNull final ValueGraph<N, Integer> graph, @NonNull final N source) {
@@ -81,7 +81,8 @@ public class DejkstraAllPairsShortestPathServiceImpl<N extends IntegerBaseNode>
           }
           if (graph.isDirected()) {
             vertexPairToShortestPath.put(EndpointPair.ordered(source, node),
-                new ShortestPathResult<>(new ArrayList<>(shortestPath), node.getShortestPathEstimate()));
+                new ShortestPathResult<>(new ArrayList<>(shortestPath),
+                    node.getShortestPathEstimate()));
           }
         });
   }

@@ -3,6 +3,7 @@ package com.igoryan.services.impl;
 import com.google.common.graph.EndpointPair;
 import com.igoryan.model.GraphWrapper;
 import com.igoryan.model.IntegerBaseNode;
+import com.igoryan.model.Path;
 import com.igoryan.model.WeightUpdating;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
 import com.igoryan.services.IntegerDynamicGraphService;
@@ -40,11 +41,19 @@ public class DejkstraIntegerDynamicGraphServiceImpl<N extends IntegerBaseNode>
   }
 
   @Override
-  public List<N> path(final GraphWrapper<N> graphWrapper, final N src, final N dst) {
-    return dejkstraAllPairsShortestPathService.getNodePairToShortestPath(graphWrapper.getGraph())
-        .get(graphWrapper.getGraph().isDirected()
-            ? EndpointPair.ordered(src, dst)
-            : EndpointPair.unordered(src, dst))
+  public Path<N> path(final GraphWrapper<N> graphWrapper, final N src, final N dst) {
+    final EndpointPair<N> vertexes = graphWrapper.getGraph().isDirected()
+        ? EndpointPair.ordered(src, dst)
+        : EndpointPair.unordered(src, dst);
+    List<N> path = dejkstraAllPairsShortestPathService
+        .getNodePairToShortestPath(graphWrapper.getGraph())
+        .get(vertexes)
         .getShortestPath();
+    return new Path<>(vertexes, path);
+  }
+
+  @Override
+  public void init(final GraphWrapper<N> graphWrapper) {
+    dejkstraAllPairsShortestPathService.calculate(graphWrapper.getGraph());
   }
 }
