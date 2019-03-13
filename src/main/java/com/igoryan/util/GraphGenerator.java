@@ -27,8 +27,10 @@ public final class GraphGenerator {
     }
     int currentEdgeCount = 0;
     while (currentEdgeCount < edgeCount) {
-      final DejkstraNode u = nodes.get(random.nextInt(vertexCount));
-      final DejkstraNode v = nodes.get(random.nextInt(vertexCount));
+      final int indexU = random.nextInt(vertexCount);
+      final int indexV = random.nextInt(vertexCount);
+      final DejkstraNode u = nodes.get(indexU);
+      final DejkstraNode v = nodes.get(indexV);
       if (!u.equals(v) && !graph.hasEdgeConnecting(u, v)) {
         currentEdgeCount++;
         graph.putEdgeValue(u, v, random.nextInt(edgeCount) + 1);

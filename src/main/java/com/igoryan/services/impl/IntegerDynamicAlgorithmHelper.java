@@ -28,7 +28,7 @@ public class IntegerDynamicAlgorithmHelper<N> {
           Collections.singletonList(sourcePath.getVertexChain().get(1)));
     }
     final List<N> result =
-        sourcePath.getVertexChain().subList(1, sourcePath.getVertexChain().size() - 1);
+        sourcePath.getVertexChain().subList(1, sourcePath.getVertexChain().size());
     return new Path<>(vertexPair(result.get(0), result.get(result.size() - 1), graph), result);
   }
 
@@ -39,7 +39,7 @@ public class IntegerDynamicAlgorithmHelper<N> {
           Collections.singletonList(sourcePath.getVertexChain().get(0)));
     }
     final List<N> result =
-        sourcePath.getVertexChain().subList(0, sourcePath.getVertexChain().size() - 2);
+        sourcePath.getVertexChain().subList(0, sourcePath.getVertexChain().size() - 1);
     return new Path<>(vertexPair(result.get(0), result.get(result.size() - 1), graph), result);
   }
 

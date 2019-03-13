@@ -158,9 +158,13 @@ public class IntegerDynamicGraphServiceImpl<N> implements IntegerDynamicGraphSer
           dataStructure.getShortestPath()
               .computeIfAbsent(path.getFistAndLast(), k -> new HashSet<>())
               .add(path);
+          log.debug("add path to left extended shortest; path: {}, subPath: {}", path,
+              rightSubPath);
           dataStructure.getLeftExtensionOfShortestPaths()
               .computeIfAbsent(rightSubPath, k -> new HashSet<>())
               .add(path);
+          log.debug("add path to right extended shortest; path: {}, subPath: {}", path,
+              leftSubPath);
           dataStructure.getRightExtensionOfShortestPaths()
               .computeIfAbsent(leftSubPath, k -> new HashSet<>())
               .add(path);
@@ -168,7 +172,7 @@ public class IntegerDynamicGraphServiceImpl<N> implements IntegerDynamicGraphSer
         dataStructure.getLeftExtensionOfShortestPaths()
             .getOrDefault(leftSubPath, Collections.emptySet())
             .forEach(extension -> {
-              log.debug("left extension shortest path: {}", extension);
+              log.debug("L*; extension: {}, key: {}", extension, leftSubPath);
               Path<N> leftAdded = dynamicAlgorithmHelper
                   .addAsFirst(graph, extension.getFistAndLast().source(), path);
               log.debug("extend to left path; toLeftExtended: {}", leftAdded);
@@ -195,7 +199,7 @@ public class IntegerDynamicGraphServiceImpl<N> implements IntegerDynamicGraphSer
         dataStructure.getRightExtensionOfShortestPaths()
             .getOrDefault(rightSubPath, Collections.emptySet())
             .forEach(extension -> {
-              log.debug("right extension of shortest path: {}", extension);
+              log.debug("R*; extension: {}, key: {}", extension, rightSubPath);
               Path<N> rightAdded = dynamicAlgorithmHelper
                   .addAsLast(graph, extension.getFistAndLast().target(), path);
               log.debug("extend to right path; toRightExtended: {}", rightAdded);

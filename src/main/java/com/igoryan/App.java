@@ -26,7 +26,7 @@ public class App {
         injector.getInstance(Key.get(
             new TypeLiteral<IntegerDejkstraAllPairsShortestPathService<DejkstraNode>>() {
             }));
-    final MutableValueGraph<DejkstraNode, Integer> dejkstraGraph = GraphGenerator.generate(5, 10);
+    final MutableValueGraph<DejkstraNode, Integer> dejkstraGraph = GraphGenerator.generate(4, 6);
     final MutableValueGraph<String, Integer> graph = GraphGenerator.fromGraph(dejkstraGraph);
     final GraphWrapper<String> graphWrapper = new GraphWrapper<>("", graph);
     final Stopwatch stopwatchDynamicGraph = Stopwatch.createStarted();
