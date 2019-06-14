@@ -12,17 +12,13 @@ import com.google.common.graph.ValueGraphBuilder;
 import com.igoryan.model.Node;
 import com.igoryan.model.ShortestPathResult;
 import com.igoryan.services.IntegerDejkstraAllPairsShortestPathService;
-import com.igoryan.services.IntegerRelaxationService;
 import java.util.Map;
 import org.junit.Test;
 
 public class DejkstraAllPairsShortestPathServiceImplTest {
 
-  private final IntegerRelaxationService<Node> relaxationService =
-      new IntegerRelaxationService<Node>() {
-      };
   private final IntegerDejkstraAllPairsShortestPathService<Node> allPairsShortestPathService =
-      new DejkstraAllPairsShortestPathServiceImpl<>(relaxationService);
+      new DejkstraAllPairsShortestPathServiceImpl<>();
 
   @Test
   public void calculateSimpleCase() {
